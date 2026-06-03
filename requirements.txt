@@ -34,3 +34,6 @@ pytest-flask>=1.3.0
 
 # Development tools
 requests>=2.31.0
+
+# Security
+bcrypt>=4.0.0
