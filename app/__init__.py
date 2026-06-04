@@ -40,16 +40,28 @@ def create_app(config_name: str = None) -> Flask:
     app.config.from_object(config)
 
     # ----------------------------------------------------------------
+       # ----------------------------------------------------------------
     # 2. Initialize extensions (db, jwt, cors, etc.)
     # ----------------------------------------------------------------
     from app.extensions import init_extensions
     init_extensions(app)
 
     # ----------------------------------------------------------------
+    # 2b. Register models (so SQLAlchemy knows about them)
+    # ----------------------------------------------------------------
+    with app.app_context():
+        from app.models import user  # noqa: F401 — import for side effects
+        from app.extensions import db
+        db.create_all()
+
+    # ----------------------------------------------------------------
     # 3. Register blueprints (modular endpoints)
     # ----------------------------------------------------------------
     from app.api.health import health_bp
     app.register_blueprint(health_bp, url_prefix="/api/v1")
+
+    from app.api.auth import auth_bp
+    app.register_blueprint(auth_bp, url_prefix="/api/v1")
 
     # ----------------------------------------------------------------
     # 4. Root endpoint - API discovery
