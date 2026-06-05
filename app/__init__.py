@@ -49,7 +49,7 @@ def create_app(config_name: str = None) -> Flask:
     # 2b. Register models (so SQLAlchemy knows about them)
     # ----------------------------------------------------------------
     with app.app_context():
-        from app.models import user  # noqa: F401 — import for side effects
+        from app.models import user, incident  # noqa: F401 — import for side effects
         from app.extensions import db
         db.create_all()
 
@@ -65,6 +65,9 @@ def create_app(config_name: str = None) -> Flask:
     from app.api.metrics import metrics_bp
     app.register_blueprint(metrics_bp)  # url_prefix already set in blueprint
 
+    from app.api.incidents import incidents_bp
+    app.register_blueprint(incidents_bp)  # url_prefix already set in blueprint
+
     # ----------------------------------------------------------------
     # 4. Root endpoint - API discovery
     # ----------------------------------------------------------------
@@ -76,10 +79,11 @@ def create_app(config_name: str = None) -> Flask:
             "version": app.config.get("API_VERSION", "0.1.0"),
             "description": "Monitoring & incident management for IT operations",
             "endpoints": {
-                "health":   "/api/v1/health",
-                "auth":     "/api/v1/auth/login",
-                "metrics":  "/api/v1/metrics/system",
-                "docs":     "Coming soon: /docs",
+                "health":    "/api/v1/health",
+                "auth":      "/api/v1/auth/login",
+                "metrics":   "/api/v1/metrics/system",
+                "incidents": "/api/v1/incidents",
+                "docs":      "Coming soon: /docs",
             },
             "author": "Santo António",
         }), 200

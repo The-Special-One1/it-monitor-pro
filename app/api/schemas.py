@@ -15,6 +15,11 @@ Reference: https://marshmallow.readthedocs.io/
 """
 
 from marshmallow import Schema, fields, validate, validates, ValidationError, post_load
+from marshmallow.validate import OneOf, Length
+
+from app.models.incident import (
+    IncidentSeverity, IncidentStatus, IncidentCategory, IncidentSource,
+)
 
 from app.utils.security import is_password_strong
 
@@ -111,3 +116,151 @@ register_schema = RegisterSchema()
 login_schema = LoginSchema()
 user_response_schema = UserResponseSchema()
 token_response_schema = TokenResponseSchema()
+
+
+
+# ============================================================
+# INCIDENT SCHEMAS
+# ============================================================
+
+# Helper: extract Enum values for marshmallow.OneOf validation
+_SEVERITY_VALUES = [e.value for e in IncidentSeverity]
+_STATUS_VALUES = [e.value for e in IncidentStatus]
+_CATEGORY_VALUES = [e.value for e in IncidentCategory]
+_SOURCE_VALUES = [e.value for e in IncidentSource]
+
+
+class IncidentCreateSchema(Schema):
+    """
+    Validate POST /api/v1/incidents payload.
+
+    Used when a user (or the alerting engine) reports a new incident.
+    """
+
+    title = fields.Str(
+        required=True,
+        validate=Length(min=5, max=200),
+        error_messages={"required": "Title is required."},
+    )
+    description = fields.Str(
+        required=True,
+        validate=Length(min=10, max=5000),
+        error_messages={"required": "Description is required."},
+    )
+    severity = fields.Str(
+        load_default=IncidentSeverity.MEDIUM.value,
+        validate=OneOf(_SEVERITY_VALUES),
+    )
+    category = fields.Str(
+        load_default=IncidentCategory.OTHER.value,
+        validate=OneOf(_CATEGORY_VALUES),
+    )
+    source = fields.Str(
+        load_default=IncidentSource.MANUAL.value,
+        validate=OneOf(_SOURCE_VALUES),
+    )
+    sla_minutes = fields.Int(
+        load_default=None,
+        validate=validate.Range(min=1, max=43200),  # 1 min .. 30 days
+    )
+
+    @post_load
+    def trim_strings(self, data, **kwargs):
+        data["title"] = data["title"].strip()
+        data["description"] = data["description"].strip()
+        return data
+
+
+class IncidentUpdateSchema(Schema):
+    """
+    Validate PATCH /api/v1/incidents/<id> payload.
+
+    All fields are optional — only provided fields are updated.
+    """
+
+    title = fields.Str(validate=Length(min=5, max=200))
+    description = fields.Str(validate=Length(min=10, max=5000))
+    severity = fields.Str(validate=OneOf(_SEVERITY_VALUES))
+    status = fields.Str(validate=OneOf(_STATUS_VALUES))
+    category = fields.Str(validate=OneOf(_CATEGORY_VALUES))
+    assigned_to_id = fields.Int(allow_none=True)
+    sla_minutes = fields.Int(
+        allow_none=True,
+        validate=validate.Range(min=1, max=43200),
+    )
+
+    @post_load
+    def trim_strings(self, data, **kwargs):
+        if "title" in data:
+            data["title"] = data["title"].strip()
+        if "description" in data:
+            data["description"] = data["description"].strip()
+        return data
+
+
+class IncidentFilterSchema(Schema):
+    """
+    Validate query string parameters for GET /api/v1/incidents.
+
+    Example: ?status=OPEN&severity=CRITICAL&category=DISK&page=1&per_page=20
+    """
+
+    status = fields.Str(validate=OneOf(_STATUS_VALUES))
+    severity = fields.Str(validate=OneOf(_SEVERITY_VALUES))
+    category = fields.Str(validate=OneOf(_CATEGORY_VALUES))
+    source = fields.Str(validate=OneOf(_SOURCE_VALUES))
+    assigned_to_id = fields.Int()
+    reported_by_id = fields.Int()
+    include_deleted = fields.Bool(load_default=False)
+    page = fields.Int(load_default=1, validate=validate.Range(min=1))
+    per_page = fields.Int(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class IncidentResponseSchema(Schema):
+    """Format Incident objects for JSON responses."""
+
+    class Meta:
+        ordered = True
+
+    id = fields.Int()
+    title = fields.Str()
+    description = fields.Str()
+    severity = fields.Method("get_severity")
+    status = fields.Method("get_status")
+    category = fields.Method("get_category")
+    source = fields.Method("get_source")
+    reported_by_id = fields.Int()
+    assigned_to_id = fields.Int(allow_none=True)
+    created_at = fields.DateTime()
+    updated_at = fields.DateTime()
+    resolved_at = fields.DateTime(allow_none=True)
+    sla_minutes = fields.Int(allow_none=True)
+    sla_breached = fields.Method("get_sla_breached")
+    is_deleted = fields.Bool()
+
+    # Convert SQLAlchemy Enum -> string value
+    def get_severity(self, obj):
+        return obj.severity.value if obj.severity else None
+
+    def get_status(self, obj):
+        return obj.status.value if obj.status else None
+
+    def get_category(self, obj):
+        return obj.category.value if obj.category else None
+
+    def get_source(self, obj):
+        return obj.source.value if obj.source else None
+
+    def get_sla_breached(self, obj):
+        return obj.is_sla_breached()
+
+
+# ============================================================
+# Schema instances (singletons)
+# ============================================================
+
+incident_create_schema = IncidentCreateSchema()
+incident_update_schema = IncidentUpdateSchema()
+incident_filter_schema = IncidentFilterSchema()
+incident_response_schema = IncidentResponseSchema()
+incidents_response_schema = IncidentResponseSchema(many=True)
