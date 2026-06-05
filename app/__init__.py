@@ -68,6 +68,9 @@ def create_app(config_name: str = None) -> Flask:
     from app.api.incidents import incidents_bp
     app.register_blueprint(incidents_bp)  # url_prefix already set in blueprint
 
+    from app.api.alerts import alerts_bp
+    app.register_blueprint(alerts_bp)  # url_prefix already set in blueprint
+    
     # ----------------------------------------------------------------
     # 4. Root endpoint - API discovery
     # ----------------------------------------------------------------
@@ -83,6 +86,7 @@ def create_app(config_name: str = None) -> Flask:
                 "auth":      "/api/v1/auth/login",
                 "metrics":   "/api/v1/metrics/system",
                 "incidents": "/api/v1/incidents",
+                "alerts":    "/api/v1/alerts/rules",
                 "docs":      "Coming soon: /docs",
             },
             "author": "Santo António",
