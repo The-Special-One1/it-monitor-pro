@@ -40,7 +40,6 @@ def create_app(config_name: str = None) -> Flask:
     app.config.from_object(config)
 
     # ----------------------------------------------------------------
-       # ----------------------------------------------------------------
     # 2. Initialize extensions (db, jwt, cors, etc.)
     # ----------------------------------------------------------------
     from app.extensions import init_extensions
@@ -63,6 +62,9 @@ def create_app(config_name: str = None) -> Flask:
     from app.api.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix="/api/v1")
 
+    from app.api.metrics import metrics_bp
+    app.register_blueprint(metrics_bp)  # url_prefix already set in blueprint
+
     # ----------------------------------------------------------------
     # 4. Root endpoint - API discovery
     # ----------------------------------------------------------------
@@ -74,8 +76,10 @@ def create_app(config_name: str = None) -> Flask:
             "version": app.config.get("API_VERSION", "0.1.0"),
             "description": "Monitoring & incident management for IT operations",
             "endpoints": {
-                "health":  "/api/v1/health",
-                "docs":    "Coming soon: /docs",
+                "health":   "/api/v1/health",
+                "auth":     "/api/v1/auth/login",
+                "metrics":  "/api/v1/metrics/system",
+                "docs":     "Coming soon: /docs",
             },
             "author": "Santo António",
         }), 200
