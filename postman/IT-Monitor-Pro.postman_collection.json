@@ -1,0 +1,224 @@
+{
+  "info": {
+    "name": "IT Monitor Pro",
+    "description": "## IT Monitor Pro — REST API\n\nProduction-ready IT monitoring & incident management API.\n\n**Stack:** Python · Flask · SQLAlchemy · JWT · psutil · Docker\n\n### How to use\n\n1. Select the **`IT Monitor Pro - Local`** environment (top-right corner).\n2. Run the **`Auth / Login`** request → token is auto-saved to the `access_token` variable.\n3. All other requests use `{{access_token}}` automatically.\n\n### Endpoints\n\n- **Discovery:** root, health\n- **Authentication:** register, login, me, refresh\n- **Monitoring:** system, cpu, memory, disk, network, health summary\n\nAuthor: Santo António",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Discovery",
+      "item": [
+        {
+          "name": "Root - API discovery",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/", "host": ["{{base_url}}"], "path": [""] }
+          }
+        },
+        {
+          "name": "Health check (public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register new user",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@itmonitor.com\",\n  \"password\": \"StrongPass1\",\n  \"full_name\": \"New User\",\n  \"role\": \"support\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login (auto-save token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "    pm.environment.set('access_token', json.access_token);",
+                  "    console.log('✅ access_token saved to environment');",
+                  "}",
+                  "if (json.refresh_token) {",
+                  "    pm.environment.set('refresh_token', json.refresh_token);",
+                  "    console.log('✅ refresh_token saved to environment');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get current user (/me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Refresh access token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "    pm.environment.set('access_token', json.access_token);",
+                  "    console.log('✅ access_token refreshed');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{refresh_token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Monitoring",
+      "item": [
+        {
+          "name": "Health summary (aggregated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/metrics/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "metrics", "health"]
+            },
+            "description": "Returns overall_status (OK/WARNING/CRITICAL) using worst-case of all subsystems."
+          }
+        },
+        {
+          "name": "System snapshot (full)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/metrics/system",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "metrics", "system"]
+            },
+            "description": "Complete snapshot: CPU + memory + disk + network with timestamp and hostname."
+          }
+        },
+        {
+          "name": "CPU metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/metrics/cpu",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "metrics", "cpu"]
+            }
+          }
+        },
+        {
+          "name": "Memory metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/metrics/memory",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "metrics", "memory"]
+            }
+          }
+        },
+        {
+          "name": "Disk metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/metrics/disk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "metrics", "disk"]
+            }
+          }
+        },
+        {
+          "name": "Network metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/metrics/network",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "metrics", "network"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
